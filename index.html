@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Fresh Baked</title>
+<title>Baked Little Goodies</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#fbf3e6;--card:#fffaf1;--ink:#4a2f22;--muted:#8a6a58;--accent:#b5653a;--accent2:#8f4a26;--line:#ecd9bf;--cream:#f4e4c9;
@@ -29,7 +29,7 @@ nav a:hover{color:var(--accent)}
 section{padding:36px 0}
 .card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:22px}
 .menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
-.gal{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px}
+.gal{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px;max-width:420px}
 .gal img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:14px;display:block}
 .price{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .pill{background:var(--cream);border-radius:99px;padding:4px 14px;font-weight:700;font-size:.9rem}
@@ -58,9 +58,9 @@ a{color:var(--accent2)}
 .rbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
 .rbtns .btn{flex:1;text-align:center;padding:12px 14px}
 .btn.alt{background:var(--cream);color:var(--ink)}
-#conBg{display:none;position:fixed;inset:0;background:rgba(40,25,18,.6);z-index:60;overflow:auto;padding:24px 16px;padding-top:calc(24px + env(safe-area-inset-top,0px))}
-#conCard{max-width:440px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:26px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
-@media print{#conBg{display:none!important}body *{visibility:hidden}#rcpBg,#rcpBg *{visibility:visible}#rcpBg{position:absolute;background:#fff;overflow:visible}#receipt{box-shadow:none;border:0}.rbtns{display:none}}
+#conBg,#stBg{display:none;position:fixed;inset:0;background:rgba(40,25,18,.6);z-index:60;overflow:auto;padding:24px 16px;padding-top:calc(24px + env(safe-area-inset-top,0px))}
+#conCard,#stCard{max-width:440px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:26px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+@media print{.noprint{display:none!important}#conBg,#stBg{display:none!important}body *{visibility:hidden}#rcpBg,#rcpBg *{visibility:visible}#rcpBg{position:absolute;background:#fff;overflow:visible}#receipt{box-shadow:none;border:0}.rbtns{display:none}}
 </style>
 </head>
 <body>
@@ -104,9 +104,21 @@ a{color:var(--accent2)}
         <label for="email">Email (optional)</label><input type="email" id="email" autocomplete="email">
         <label for="notes">Notes (optional)</label><textarea id="notes" rows="2"></textarea>
         <div class="err" id="err"></div>
-        <p><button class="btn" id="submit" type="button">Send my order</button></p>
-        <p class="small">Pay with cash or tap to pay when you pick up.</p>
+        <p><button class="btn" id="submit" type="button">Continue to payment</button></p>
+        <p class="small">Next you'll pay by Zelle. Your order is only placed once you submit your payment confirmation.</p>
       </form>
+      <div id="payStep" style="display:none">
+        <h3>Pay by Zelle</h3>
+        <div id="pSum" class="small" style="margin-bottom:8px"></div>
+        <div class="rline"><span>Amount</span><span id="pAmt"></span></div>
+        <div class="rline"><span>Send to</span><span id="pTo"></span></div>
+        <div class="rline"><span>Memo</span><span id="pMemo"></span></div>
+        <p class="small">Send the payment in your banking app. Then enter the Zelle confirmation number below and tap the button. Your order is only placed once you do.</p>
+        <label for="zName">Name on your Zelle account *</label><input type="text" id="zName" autocomplete="off">
+        <label for="zRef">Zelle confirmation number *</label><input type="text" id="zRef" autocomplete="off">
+        <div class="err" id="pErr"></div>
+        <p><button class="btn" id="pSend" type="button">I've sent my payment</button> <button class="btn alt" id="pBack" type="button">Back</button></p>
+      </div>
       <div id="done"></div>
     </div>
   </div>
@@ -116,7 +128,7 @@ a{color:var(--accent2)}
   <div class="card" style="text-align:center">
     <h2>Questions?</h2>
     <p style="color:var(--muted)">Have a question about an order or flavors? Send me a message.</p>
-    <p><button class="btn" type="button" onclick="openContact()">Contact us</button></p>
+    <p><button class="btn" type="button" onclick="openContact()">Contact us</button> </p>
   </div>
 </section>
 <footer id="foot"></footer>
@@ -138,7 +150,7 @@ a{color:var(--accent2)}
 <script>
 /* ============ EDIT THIS SECTION ============ */
 const CONFIG = {
-  bakeryName: "Fresh Baked",
+  bakeryName: "Baked Little Goodies",
   tagline: "Homemade cookies baked to order. Order windows open for just a few days at a time, so grab yours while they're warm.",
   ordersOpen: true,                 // set to false when the window closes
   about: "Tell your story here: who you are, why you started baking, what makes your cookies special.",
@@ -146,8 +158,10 @@ const CONFIG = {
     "Order window": "Date and time to be announced",
     "Pickup date & time": "To be announced",
     "Pickup location": "To be announced",
-    "Payment": "Cash or tap to pay at pickup"
+    "Payment": "Zelle. You pay at checkout to place your order"
   },
+  zelleTo: "Add your Zelle phone number or email here",   // shown to customers on their receipt
+  payWindow: "within 24 hours",
   sheetUrl: "https://script.google.com/macros/s/AKfycbxoOwEQ9IrMmF8YJfkKVQBUnNRvqVwso8M3PuoegoCS_z5v5092MO0d0VIICgoJIRDK/exec"                      // paste your Google Apps Script web app URL here (see setup steps)
 };
 // Add new items here later. "bundles" = [quantity, price] deals; the cheapest combo is calculated automatically.
@@ -209,7 +223,8 @@ function render(){let t=0,bd=[];
   $("total").textContent=money(t);$("breakdown").textContent=t?"":"Choose a single, a box of 4, or a box of 6 using the + buttons.";
   return{t,bd};}
 render();
-function showClosed(msg,badge){
+let isOpen=CONFIG.ordersOpen;
+function showClosed(msg,badge){isOpen=false;$("payStep").style.display="none";
   $("f").style.display="none";$("items").style.display="none";$("orderCard").querySelector(".total").style.display="none";
   const br=$("breakdown");br.textContent=msg;br.style.cssText="font:700 1.2rem Fraunces,Georgia,serif;color:var(--accent2);text-align:center;margin:14px 0";
   $("status").textContent=badge;$("status").className="badge closed";}
@@ -238,9 +253,9 @@ $("cSend").onclick=()=>{
 
 let lastReceipt="";
 function receiptText(o,when){
-  const L=["ORDER CONFIRMED - "+CONFIG.bakeryName,"Placed: "+when,"","Name: "+o.name,"Phone: "+o.phone];
+  const L=["ORDER CONFIRMED - "+CONFIG.bakeryName,"Order #: "+o.id,"Placed: "+when,"","Name: "+o.name,"Phone: "+o.phone];
   if(o.email)L.push("Email: "+o.email);
-  L.push("","ORDER",...o.bd,"","TOTAL: "+money(o.t),"");
+  L.push("","ORDER",...o.bd,"","TOTAL: "+money(o.t),"","PAYMENT","Paid by Zelle (confirmation #"+o.ref+")","");
   Object.entries(CONFIG.orderInfo).filter(([k])=>k!=="Order window").forEach(([k,v])=>L.push(k+": "+v));
   if(o.notes)L.push("","Notes: "+o.notes);
   L.push("","Questions? Use the Contact button on our website.");return L.join("\n");
@@ -249,13 +264,14 @@ function showReceipt(o){
   const when=new Date().toLocaleString([], {dateStyle:"medium",timeStyle:"short"});
   const r=$("receipt");r.innerHTML="";
   const add=(tag,txt,cls)=>{const e=document.createElement(tag);e.textContent=txt;if(cls)e.className=cls;r.appendChild(e);return e;};
-  add("h2","Order Confirmed! 🍪");add("p",CONFIG.bakeryName+" · "+when,"sub");
+  add("h2","Order Confirmed! 🍪");add("p",CONFIG.bakeryName+" · Order #"+o.id+" · "+when,"sub");
   const row=(p,k,v)=>{const d=document.createElement("div");d.className="rline";const a=document.createElement("span"),b=document.createElement("span");a.textContent=k;b.textContent=v;d.append(a,b);p.appendChild(d);};
   const sec=(title)=>{const s=document.createElement("div");s.className="rsec";const t=document.createElement("b");t.textContent=title;s.appendChild(t);r.appendChild(s);return s;};
   let s=sec("Customer");row(s,"Name",o.name);row(s,"Phone",o.phone);if(o.email)row(s,"Email",o.email);
   s=sec("Your order");o.bd.forEach(x=>{const i=x.indexOf(": ");row(s,x.slice(0,i),x.slice(i+2));});
   const tot=document.createElement("div");tot.className="rline";tot.style.cssText="font:700 1.3rem Fraunces,Georgia,serif;margin-top:6px";
   tot.innerHTML="<span></span><span></span>";tot.children[0].textContent="Total";tot.children[1].textContent=money(o.t);s.appendChild(tot);
+  s=sec("Payment");row(s,"Method","Zelle");row(s,"Confirmation #",o.ref);row(s,"Amount",money(o.t));
   s=sec("Pickup");Object.entries(CONFIG.orderInfo).filter(([k])=>k!=="Order window").forEach(([k,v])=>row(s,k,v));
   if(o.notes){s=sec("Notes");const p=document.createElement("div");p.textContent=o.notes;s.appendChild(p);}
   add("p","Questions? Use the Contact button on our website.","small").style.textAlign="center";
@@ -271,6 +287,10 @@ function showReceipt(o){
 }
 function openReceipt(){$("rcpBg").style.display="block";$("rcpBg").scrollTop=0;}
 
+let pending=null;
+const genId=()=>{const c="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";for(let i=0;i<5;i++)s+=c[Math.floor(Math.random()*c.length)];return s;};
+const finish=(html)=>{$("f").style.display="none";$("items").style.display="none";$("payStep").style.display="none";$("done").style.display="block";$("done").innerHTML=html;};
+const unitsCap=()=>MENU.filter(x=>x.countsToCap).reduce((s,x)=>s+units(x),0);
 $("submit").onclick=()=>{
   const {t,bd}=render(), name=$("name").value.trim(), phone=$("phone").value.trim(), email=$("email").value.trim();
   const e=$("err");e.textContent="";
@@ -278,24 +298,47 @@ $("submit").onclick=()=>{
   if(!name)return e.textContent="Please enter your name.";
   if(phone.replace(/\D/g,"").length<7)return e.textContent="Please enter a valid phone number.";
   if(email&&!/^\S+@\S+\.\S+$/.test(email))return e.textContent="That email doesn't look right.";
-  const body=["New order","","Name: "+name,"Phone: "+phone,"Email: "+(email||"(not provided)"),"",...bd,"","Total: "+money(t),"","Notes: "+($("notes").value.trim()||"(none)")].join("\n");
-  const d=$("done");
-  const finish=(html)=>{$("f").style.display="none";$("items").style.display="none";d.style.display="block";d.innerHTML=html;};
-  if(CONFIG.sheetUrl){
-    const btn=$("submit");btn.disabled=true;btn.textContent="Sending...";
-    const cookies=MENU.filter(x=>x.countsToCap).reduce((s,x)=>s+units(x),0);
-    const payload={name,phone,email,items:bd.join(" | "),cookies,total:t,notes:$("notes").value.trim()};
-    fetch(CONFIG.sheetUrl+"?action=order&data="+encodeURIComponent(JSON.stringify(payload)))
-      .then(r=>r.json()).then(j=>{
-        btn.disabled=false;btn.textContent="Send my order";
-        if(j.ok){finish("<h3>Order confirmed! 🍪</h3><p>Thank you! Your receipt is on screen. You can also reopen it below.</p><p><button class='btn' type='button' onclick='openReceipt()'>View receipt</button></p>");showReceipt({name,phone,email,bd,t,notes:payload.notes});}
-        else if(j.reason==="soldout")showClosed(SOLD,"Sold out");
-        else if(j.reason==="limit"){left=j.left;e.textContent="Sorry, only "+j.left+" cookies are left. Please reduce your order and try again.";}
-        else e.textContent="Something went wrong. Please try again in a moment, or use the Contact button.";})
-      .catch(()=>{btn.disabled=false;btn.textContent="Send my order";e.textContent="Something went wrong. Please try again in a moment, or use the Contact button.";});
-    return;
-  }
-  e.textContent="Ordering isn't available right now. Please try again later.";
+  if(!CONFIG.sheetUrl)return e.textContent="Ordering isn't available right now. Please try again later.";
+  const btn=$("submit");btn.disabled=true;btn.textContent="Checking availability...";
+  const reset=()=>{btn.disabled=false;btn.textContent="Continue to payment";};
+  fetch(CONFIG.sheetUrl+"?action=status").then(r=>r.json()).then(j=>{
+    reset();
+    if(j.soldOut)return showClosed(SOLD,"Sold out");
+    const cookies=unitsCap();
+    if(typeof j.left==="number"&&cookies>j.left){left=j.left;return e.textContent="Sorry, only "+j.left+" cookies are left. Please reduce your order and try again.";}
+    pending={id:genId(),name,phone,email,bd,t,cookies,notes:$("notes").value.trim()};
+    $("pSum").textContent=bd.join(" · ");$("pAmt").textContent=money(t);$("pTo").textContent=CONFIG.zelleTo;$("pMemo").textContent=name+" #"+pending.id;
+    $("pErr").textContent="";$("zRef").value="";$("zName").value=name;
+    $("f").style.display="none";$("items").style.display="none";$("payStep").style.display="block";
+    $("payStep").scrollIntoView({behavior:"smooth",block:"start"});
+  }).catch(()=>{reset();e.textContent="Something went wrong. Please try again in a moment, or use the Contact button.";});
+};
+$("pBack").onclick=()=>{$("payStep").style.display="none";$("f").style.display="";$("items").style.display="";};
+function badRef(r){
+  const s=r.replace(/\s+/g,"").toLowerCase();
+  if(s.length<6||s.length>30)return true;
+  if(!/\d/.test(s))return true;
+  if(/^(.)\1+$/.test(s))return true;
+  if("0123456789".includes(s)||"9876543210".includes(s))return true;
+  if(["testtest","123456","1234567","12345678","000000","none","n/a","zelle","paid","confirmation"].includes(s))return true;
+  return false;
+}
+$("pSend").onclick=()=>{
+  const ref=$("zRef").value.trim(),pe=$("pErr");pe.textContent="";
+  const zn=$("zName").value.trim();
+  if(zn.length<2)return pe.textContent="Please enter the name on your Zelle account.";
+  if(badRef(ref))return pe.textContent="That doesn't look like a real Zelle confirmation number. Please send your payment, then copy the number from your bank's confirmation screen.";
+  const o=pending;if(!o)return;
+  const btn=$("pSend");btn.disabled=true;btn.textContent="Placing order...";
+  const reset=()=>{btn.disabled=false;btn.textContent="I've sent my payment";};
+  const payload={id:o.id,name:o.name,phone:o.phone,email:o.email,items:o.bd.join(" | "),cookies:o.cookies,total:o.t,notes:o.notes,zelleRef:ref.slice(0,60),zelleName:zn.slice(0,80)};
+  fetch(CONFIG.sheetUrl+"?action=order&data="+encodeURIComponent(JSON.stringify(payload))).then(r=>r.json()).then(j=>{
+    reset();
+    if(j.ok){finish("<h3>Order confirmed! 🍪</h3><p>Thank you! Your payment details were received and your order is placed. Your receipt is on screen.</p><p><button class='btn' type='button' onclick='openReceipt()'>View receipt</button></p>");showReceipt({id:o.id,name:o.name,phone:o.phone,email:o.email,bd:o.bd,t:o.t,notes:o.notes,ref});}
+    else if(j.reason==="dupe")pe.textContent="That confirmation number has already been used on another order. Please double-check it.";
+    else if(j.reason==="soldout"||j.reason==="limit")finish("<h3>So sorry!</h3><p>The last cookies were taken just before your order went through. Your payment details were saved, and I'll refund your Zelle payment. You can also use the Contact button below.</p>");
+    else pe.textContent="Something went wrong. Please try again, or use the Contact button.";
+  }).catch(()=>{reset();pe.textContent="Something went wrong. Please press the button again, or use the Contact button.";});
 };
 </script>
 </body>
