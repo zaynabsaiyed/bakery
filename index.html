@@ -77,6 +77,11 @@ section>h2,.step-title,#detailsTotal{text-align:center}
 #policyCard{max-width:520px;margin:0 auto;padding:28px;background:var(--card);border-radius:14px}
 #policyCard h2{font-size:1.4rem;margin-bottom:18px;text-align:center}#policyCard p{font-size:.9rem;line-height:1.75;margin-bottom:18px}
 @media print{#policyBg{display:none!important}}
+
+/* Keep deadline and pickup together, with the location centered underneath. */
+.pickup-summary .info{grid-template-columns:repeat(2,minmax(0,1fr));max-width:760px;margin:0 auto;gap:20px 32px;text-align:center}
+.pickup-summary .info>div:last-child{grid-column:1/-1;max-width:680px;width:100%;justify-self:center}
+@media(max-width:600px){.pickup-summary .info{grid-template-columns:1fr;gap:18px}.pickup-summary .info>div:last-child{grid-column:1}}
 </style>
 </head>
 <body>
