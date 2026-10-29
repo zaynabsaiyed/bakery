@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="goodflour-layout" content="cohesive-5">
+<meta name="goodflour-layout" content="cohesive-6">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Good Flour Bakery</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -82,6 +82,14 @@ section>h2,.step-title,#detailsTotal{text-align:center}
 .pickup-summary .info{grid-template-columns:repeat(2,minmax(0,1fr));max-width:760px;margin:0 auto;gap:20px 32px;text-align:center}
 .pickup-summary .info>div:last-child{grid-column:1/-1;max-width:680px;width:100%;justify-self:center}
 @media(max-width:600px){.pickup-summary .info{grid-template-columns:1fr;gap:18px}.pickup-summary .info>div:last-child{grid-column:1}}
+
+/* A larger menu presentation, with centered cards for short menus. */
+#menu{padding-top:52px;padding-bottom:52px}
+#menu>h2{font-size:clamp(1.8rem,3.5vw,2.1rem);margin-bottom:26px}
+#menu .menu>.card,#menu .menu-group-items>.card{flex-basis:calc((100% - 22px)/2)}
+#menu .menu-main-photo{height:320px}
+#menu .card h3{font-size:1.1rem}
+@media(max-width:600px){#menu{padding-top:36px;padding-bottom:36px}#menu .menu>.card,#menu .menu-group-items>.card{flex-basis:100%;max-width:440px}#menu .menu-main-photo{height:300px}}
 </style>
 </head>
 <body>
@@ -199,12 +207,12 @@ section>h2,.step-title,#detailsTotal{text-align:center}
 const CONFIG = {
   bakeryName: "Good Flour Bakery",
   tagline: "Homemade treats, baked fresh for Sunday pickup.",
-  ordersOpen: true,                 // set to false when the window closes
+  ordersOpen: true,                 // manual pause; Monday–Thursday availability is automatic
   orderInfo: {                      // shown in the Order details box
     "Order window": "Date and time to be announced",
     "Pickup date": "",
     "Pickup time": "2–3 PM",
-    "Pickup location": "Park next to Grand Vista Pool · 18806 Pr Fld Ln, Richmond, TX 77407",
+    "Pickup location": "Parking lot next to Grand Vista Pool · 18806 Pr Fld Ln, Richmond, TX 77407",
     "Payment": "Zelle. You pay at checkout to place your order"
   },
   zelleTo: "info@goodflourbakery.com",   // shown to customers on their receipt
@@ -258,11 +266,12 @@ function getWeeklySchedule(now=new Date()) {
   const value=k=>Number(parts.find(p=>p.type===k).value);
   const today=new Date(Date.UTC(value("year"),value("month")-1,value("day")));
   const start=new Date(today);
-  start.setUTCDate(start.getUTCDate()-(start.getUTCDay()+3)%7); // most recent Thursday
-  const end=new Date(start); end.setUTCDate(end.getUTCDate()+6);
-  const pickup=new Date(start); pickup.setUTCDate(pickup.getUTCDate()+10);
+  const day=today.getUTCDay(),windowOpen=day>=1&&day<=4;
+  start.setUTCDate(start.getUTCDate()+(day===0?1:day>=5?8-day:1-day)); // current or upcoming Monday
+  const end=new Date(start); end.setUTCDate(end.getUTCDate()+3);
+  const pickup=new Date(start); pickup.setUTCDate(pickup.getUTCDate()+6);
   const label=(d,weekday=false)=>new Intl.DateTimeFormat("en-US",{timeZone:"UTC",month:"long",day:"numeric",...(weekday?{weekday:"long"}:{})}).format(d);
-  return {id:pickup.toISOString().slice(0,10),window:"Order by "+label(end)+" for "+label(pickup)+" pickup",pickup:label(pickup,true)};
+  return {windowOpen,opens:label(start,true),id:pickup.toISOString().slice(0,10),window:"Order by "+label(end)+" for "+label(pickup)+" pickup",pickup:label(pickup,true)};
 }
 let currentSchedule;
 function updateSchedule(next=getWeeklySchedule()) {
@@ -270,14 +279,14 @@ function updateSchedule(next=getWeeklySchedule()) {
   CONFIG.orderInfo["Order window"]=next.window;
   CONFIG.orderInfo["Pickup date"]=next.pickup;
   if(next.pickupTime)CONFIG.orderInfo["Pickup time"]=next.pickupTime;
-  if(next.pickupLocation)CONFIG.orderInfo["Pickup location"]=next.pickupLocation;
+  CONFIG.orderInfo["Pickup location"]='Parking lot next to Grand Vista Pool · 18806 Pr Fld Ln, Richmond, TX 77407'; // Keep the published pickup wording while the script is being updated.
   $("info").replaceChildren();
   const deadline=next.window.replace(/^Order by /,"").replace(/ for .* pickup$/,"");
-  [["Order by",deadline],["Pickup",next.pickup+" · "+CONFIG.orderInfo["Pickup time"]],["Location",CONFIG.orderInfo["Pickup location"]]].forEach(([k,v])=>{
+  [[next.windowOpen===false?"Ordering opens":"Order by",next.windowOpen===false?next.opens:deadline],["Pickup",next.pickup+" · "+CONFIG.orderInfo["Pickup time"]],["Location",CONFIG.orderInfo["Pickup location"]]].forEach(([k,v])=>{
     const item=document.createElement("div"),dt=document.createElement("dt"),dd=document.createElement("dd");
     dt.textContent=k;
     if(k==="Location"){
-      const a=document.createElement("a");a.textContent=v;a.href="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(v);a.target="_blank";a.rel="noopener noreferrer";dd.append(a);
+      const a=document.createElement("a");a.textContent=v;a.href="https://www.google.com/maps/search/?api=1&query=29.682063%2C-95.708422";a.target="_blank";a.rel="noopener noreferrer";dd.append(a);
     }else dd.textContent=v;
     item.append(dt,dd);$("info").append(item);
   });
@@ -597,14 +606,16 @@ function showClosed(msg,badge){
 function applyStatus(j){
   if(j.apiVersion!==3 || j.policyVersion!==POLICY_VERSION || !j.schedule || !j.orderInfo || !j.products || typeof j.left!=="number")
     throw new Error("The weekly order script has not been deployed yet.");
-  Object.assign(CONFIG.orderInfo,j.orderInfo);updateSchedule(j.schedule);
-  productStock=j.products;stockReady=true;left=MENU.reduce((sum,m)=>sum+stockOf(m),0);isOpen=CONFIG.ordersOpen&&j.ordersOpen&&left>0;
+  const calendar=typeof j.schedule.windowOpen==="boolean"?j.schedule:getWeeklySchedule();
+  Object.assign(CONFIG.orderInfo,j.orderInfo);updateSchedule({...j.schedule,windowOpen:calendar.windowOpen,opens:calendar.opens});
+  productStock=j.products;stockReady=true;left=MENU.reduce((sum,m)=>sum+stockOf(m),0);isOpen=CONFIG.ordersOpen&&j.ordersOpen&&calendar.windowOpen&&left>0;
   if(!restoredDraft){restoredDraft=true;restoreDraft();}
   $("submit").disabled=!isOpen;$("orderNext").disabled=!isOpen;
   if(pending && pending.pickupDate!==j.schedule.id)
     $("pErr").textContent="This pickup week's deadline has passed. If you have already paid, submit your confirmation below so I can arrange a refund. Otherwise, go back to order for the new pickup date.";
   if(!isOpen) {
-    showClosed(left<=0?SOLD:"Orders are closed right now. Check back for the next order window!",left<=0?"Sold out":"Orders are closed");
+    if(!calendar.windowOpen)showClosed("Orders reopen "+calendar.opens+". Order Monday–Thursday for Sunday pickup.","Orders reopen "+calendar.opens);
+    else showClosed(left<=0?SOLD:"Orders are closed right now. Check back for the next order window!",left<=0?"Sold out":"Orders are closed");
   } else {
     $("status").textContent="Orders are open";$("status").className="badge open";
     if(!pending&&!completed){
@@ -789,7 +800,7 @@ $("pSend").onclick=()=>{
     zelleRef:ref.slice(0,60),zelleName:zn.slice(0,80)};
   fetch(CONFIG.sheetUrl+"?action=order&data="+encodeURIComponent(JSON.stringify(payload))).then(r=>r.json()).then(j=>{
     reset();
-    if(j.ok){finish("<h3>Order confirmed!</h3><p>Thank you! Your payment details were received and your order is placed. Your receipt is on screen.</p><p><button class='btn' type='button' onclick='openReceipt()'>View receipt</button></p>");showReceipt({no:j.orderCode,name:o.name,phone:o.phone,email:o.email,bd:o.bd,t:o.t,notes:o.notes,ref,policyAccepted:o.policyAccepted,policyVersion:o.policyVersion,orderInfo:j.orderInfo||o.orderInfo});}
+    if(j.ok){finish("<h3>Order confirmed!</h3><p>Thank you! Your payment details were received and your order is placed. Your receipt is on screen.</p><p><button class='btn' type='button' onclick='openReceipt()'>View receipt</button></p>");showReceipt({no:j.orderCode,name:o.name,phone:o.phone,email:o.email,bd:o.bd,t:o.t,notes:o.notes,ref,policyAccepted:o.policyAccepted,policyVersion:o.policyVersion,orderInfo:{...(j.orderInfo||o.orderInfo),"Pickup location":CONFIG.orderInfo["Pickup location"]}});}
     else if(j.reason==="dupe")pe.textContent="That confirmation number has already been used on another order. Please double-check it.";
     else if(j.reason==="schedule_changed"||j.reason==="closed")finish("<h3>Pickup window closed</h3><p>Your payment details were saved for review and a refund. Your order has not been moved to a different pickup week. Please use the Contact button if you need help.</p>");
     else if(j.reason==="policy_not_accepted")finish("<h3>Order needs review</h3><p>Your payment details were saved for review and a refund. Please contact us for help with your order.</p>");
