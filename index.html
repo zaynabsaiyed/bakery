@@ -109,6 +109,7 @@ nav .nav-faq:hover{text-decoration:underline;text-underline-offset:5px}
 @media print{#faqDialog{display:none!important}}
 .home-production-notice{max-width:680px;margin:0 auto 18px;color:var(--muted);font-size:.75rem;line-height:1.55;text-align:center}.menu .card>.product-allergens{display:inline-block;width:auto;border:0;background:transparent;padding:8px 0;color:var(--muted);font:inherit;font-size:.75rem;text-decoration:underline;text-underline-offset:3px;cursor:pointer;margin:4px 0 0}.product-allergens:hover{color:var(--ink)}
 #allergenDialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);width:calc(100% - 32px);max-width:440px;padding:24px;box-shadow:0 16px 60px rgba(48,35,28,.18)}#allergenDialog::backdrop{background:rgba(48,35,28,.38)}#allergenTitle{font-size:1.25rem;margin:0;text-align:left}#allergenProduct{font-size:.9rem;font-weight:600;margin:8px 0;color:var(--ink)}#allergenText{font-size:.9rem;line-height:1.6;color:var(--muted)}
+.gluten-free-request{margin:22px 0;padding:16px 0;border-top:1px solid var(--line);text-align:left}.gluten-free-request input{flex-shrink:0}
 </style>
 </head>
 <body>
@@ -145,6 +146,7 @@ nav .nav-faq:hover{text-decoration:underline;text-underline-offset:5px}
     </div>
     <div id="selectionStep">
       <div id="items"></div>
+      <label class="policy-agreement gluten-free-request" for="glutenFreeRequest"><input id="glutenFreeRequest" type="checkbox"><span>Make my order gluten-free<span class="small" style="display:block">No extra cost.</span></span></label>
       <div class="total"><span>Total</span><span id="total">$0</span></div>
       <button class="btn order-next" id="orderNext" type="button">Continue</button>
     </div>
@@ -581,7 +583,7 @@ function saveDraft(){
   try{
     const contacts={name:$("name").value,phone:$("phone").value,email:$("email").value,notes:$("notes").value};
     localStorage.setItem(DRAFT_KEY,JSON.stringify({savedAt:Date.now(),week:currentSchedule&&currentSchedule.id,contacts,
-      qty,singles:singleRows,boxes:mixedBoxes,stage:orderStage,pending}));
+      qty,singles:singleRows,boxes:mixedBoxes,glutenFreeRequested:$("glutenFreeRequest").checked,stage:orderStage,pending}));
   }catch(err){} // Private browsing or blocked storage should not prevent ordering.
 }
 function clearDraft(){try{localStorage.removeItem(DRAFT_KEY);}catch(err){}}
@@ -592,6 +594,7 @@ function restoreDraft(){
   savingDraft=true;
   try{
     for(const id of ["name","phone","email","notes"])if(typeof saved.contacts?.[id]==="string")$(id).value=saved.contacts[id];
+    $("glutenFreeRequest").checked=saved.glutenFreeRequested===true;
     const sameWeek=saved.week===currentSchedule.id;
     if(sameWeek||saved.pending){
       for(const m of MENU){
@@ -614,6 +617,7 @@ function restoreDraft(){
   }finally{savingDraft=false;}
 }
 ["name","phone","email","notes"].forEach(id=>$(id).addEventListener("input",saveDraft));
+$("glutenFreeRequest").addEventListener("change",saveDraft);
 window.addEventListener("pagehide",saveDraft);
 $("clearSavedOrder").onclick=()=>{clearDraft();window.location.reload();};
 function setOrderStage(stage,scroll=false){
@@ -831,7 +835,7 @@ $("submit").onclick=()=>{
     const limited=MENU.find(m=>units(m)>stockOf(m));
     if(limited)return e.textContent="Please reduce your "+limited.name+" quantity. Availability has changed.";
     if(!$("policyAgree").checked){$("policyError").textContent="Please agree to the pickup and refund policy before continuing.";return;}
-    pending={policyAccepted:true,policyVersion:POLICY_VERSION,id:genId(),name,phone,email,bd,t,cookies,summaryGroups:checkoutGroups(),selections:orderSelections(),boxes:mixedBoxes.map(box=>({size:box.size,flavors:{...box.flavors}})),notes:$("notes").value.trim(),pickupDate:currentSchedule.id,orderInfo:{...CONFIG.orderInfo}};
+    pending={policyAccepted:true,policyVersion:POLICY_VERSION,id:genId(),name,phone,email,bd,t,cookies,summaryGroups:checkoutGroups(),selections:orderSelections(),boxes:mixedBoxes.map(box=>({size:box.size,flavors:{...box.flavors}})),glutenFreeRequested:$("glutenFreeRequest").checked,notes:[$("glutenFreeRequest").checked?"Gluten-free requested":"",$("notes").value.trim()].filter(Boolean).join("\n"),pickupDate:currentSchedule.id,orderInfo:{...CONFIG.orderInfo}};
     showPaymentSummary(pending);$("pAmt").textContent=money(t);$("pTo").textContent=CONFIG.zelleTo;
     $("pErr").textContent="";$("zRef").value="";$("zName").value=name;
     setOrderStage("payment",true);saveDraft();
