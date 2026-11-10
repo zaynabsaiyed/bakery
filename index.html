@@ -126,6 +126,8 @@ nav .nav-faq:hover{text-decoration:underline;text-underline-offset:5px}
 #photoDialog{width:min(960px,calc(100% - 24px));max-height:94dvh;border:0;border-radius:12px;padding:16px;background:var(--card);color:var(--ink);overflow:auto}#photoDialog::backdrop{background:rgba(20,15,12,.8)}#photoDialog .faq-header{margin-bottom:12px}#photoTitle{font-size:.95rem;font-weight:600}#fullProductPhoto{display:block;width:auto;height:auto;max-width:100%;max-height:72dvh;object-fit:contain;margin:auto;border-radius:6px}.photo-viewer-controls{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:12px}.menu-main-photo[role=button]{cursor:zoom-in}.menu-main-photo[role=button]:focus-visible{outline:3px solid var(--accent);outline-offset:4px}@media(max-width:600px){#photoDialog{padding:12px}#fullProductPhoto{max-height:70dvh}}
 
 .rating-stars{display:inline-flex;gap:3px;vertical-align:middle;letter-spacing:0}.rating-star{display:block;position:relative;width:20px;height:20px;flex-shrink:0}.rating-star svg{display:block;width:20px;height:20px;fill:#d9cbbf}.rating-star-fill{position:absolute;left:0;top:0;height:20px;overflow:hidden}.rating-star-fill svg{fill:var(--accent)}#reviewSummary{display:flex;align-items:center;gap:6px;flex-wrap:wrap}@media(max-width:600px){#reviewSummary{justify-content:center}}
+
+.hero-rating-slot{min-height:28px;margin:16px auto 0;display:flex;justify-content:center;align-items:center}.hero-review-rating{display:inline-flex;align-items:center;justify-content:center;gap:9px;color:var(--accent2);font-size:.875rem;text-decoration:none}.hero-review-rating[hidden]{display:none}.hero-review-rating:hover>span:last-child{text-decoration:underline;text-underline-offset:3px}
 </style>
 </head>
 <body>
@@ -143,6 +145,7 @@ nav .nav-faq:hover{text-decoration:underline;text-underline-offset:5px}
   <h1>Fresh-baked, small-batch treats</h1>
   <p id="tagline">Homemade treats, baked fresh for Sunday pickup.</p>
   <a class="btn" href="#order">Place an order</a>
+  <div class="hero-rating-slot"><a id="heroReviewSummary" class="hero-review-rating" href="#reviews" hidden></a></div>
 </div>
 
 <section id="menu">
@@ -987,15 +990,19 @@ async function loadReviews(reset=false) {
     const summary=$('reviewSummary');summary.replaceChildren();
     if(data.total){const count=document.createElement('span');count.textContent=' · '+data.total+' '+(data.total===1?'review':'reviews');summary.append(ratingStars(data.average),count);}
     else summary.textContent='Tried my cookies? I’d love to hear what you think.';
+    const topSummary=$('heroReviewSummary');topSummary.replaceChildren();topSummary.hidden=!data.total;
+    if(data.total){const count=document.createElement('span');count.textContent=data.total+' '+(data.total===1?'review':'reviews');topSummary.append(ratingStars(data.average),count);}
+
     message.textContent=data.total?'':'Be the first to share a review.';
     button.hidden=data.nextOffset===null;button.textContent='More reviews';
   } catch(err){message.textContent='Reviews couldn’t be loaded. You can try again below.';button.hidden=false;button.textContent='Try again';}
   finally{button.disabled=false;reviewLoading=false;}
 }
 $('reviewLoad').onclick=()=>loadReviews(!reviewLoaded||reviewOffset===null);
-if(typeof IntersectionObserver!=='undefined'){
-  const reviewObserver=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){reviewObserver.disconnect();loadReviews(true);}},{rootMargin:'100px'});
-  reviewObserver.observe($('reviews'));
+// Fetch once after the first paint so the rating also appears above the menu.
+if(typeof window!=='undefined'){
+  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>loadReviews(true));
+  else setTimeout(()=>loadReviews(true),0);
 }
 function openReview(){
   const dialog=$('reviewDialog'),products=$('reviewProducts');products.replaceChildren();
