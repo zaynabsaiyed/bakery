@@ -124,6 +124,8 @@ nav .nav-faq:hover{text-decoration:underline;text-underline-offset:5px}
 
 
 #photoDialog{width:min(960px,calc(100% - 24px));max-height:94dvh;border:0;border-radius:12px;padding:16px;background:var(--card);color:var(--ink);overflow:auto}#photoDialog::backdrop{background:rgba(20,15,12,.8)}#photoDialog .faq-header{margin-bottom:12px}#photoTitle{font-size:.95rem;font-weight:600}#fullProductPhoto{display:block;width:auto;height:auto;max-width:100%;max-height:72dvh;object-fit:contain;margin:auto;border-radius:6px}.photo-viewer-controls{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:12px}.menu-main-photo[role=button]{cursor:zoom-in}.menu-main-photo[role=button]:focus-visible{outline:3px solid var(--accent);outline-offset:4px}@media(max-width:600px){#photoDialog{padding:12px}#fullProductPhoto{max-height:70dvh}}
+
+.rating-stars{display:inline-flex;gap:3px;vertical-align:middle;letter-spacing:0}.rating-star{display:block;position:relative;width:20px;height:20px;flex-shrink:0}.rating-star svg{display:block;width:20px;height:20px;fill:#d9cbbf}.rating-star-fill{position:absolute;left:0;top:0;height:20px;overflow:hidden}.rating-star-fill svg{fill:var(--accent)}#reviewSummary{display:flex;align-items:center;gap:6px;flex-wrap:wrap}@media(max-width:600px){#reviewSummary{justify-content:center}}
 </style>
 </head>
 <body>
@@ -956,11 +958,18 @@ async function reviewFetch(url,options={}) {
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
   try{return await fetch(url,{...options,signal:controller.signal});}finally{clearTimeout(timer);}
 }
+function reviewCookieName(name){return String(name||'').replace(/\bBrown\s+Butter\s+/gi,'').trim();}
+function ratingStars(value){
+ const score=Math.max(0,Math.min(5,Number(value)||0)),stars=document.createElement('span');stars.className='rating-stars';stars.setAttribute('role','img');stars.setAttribute('aria-label',score+' out of 5 stars');
+ const svg='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.3l2.96 6 6.62.96-4.79 4.67 1.13 6.59L12 17.41l-5.92 3.11 1.13-6.59-4.79-4.67 6.62-.96z"/></svg>';
+ for(let i=0;i<5;i++){const star=document.createElement('span'),fill=document.createElement('span');star.className='rating-star';star.innerHTML=svg;fill.className='rating-star-fill';fill.style.width=(Math.max(0,Math.min(1,score-i))*100)+'%';fill.innerHTML=svg;star.appendChild(fill);stars.appendChild(star);}
+ return stars;
+}
 function reviewCard(review) {
   const card=document.createElement('article');card.className='review-entry';
   const name=document.createElement('h3');name.textContent=review.name;
-  const stars=document.createElement('p');stars.className='review-score';stars.textContent='★'.repeat(review.rating)+'☆'.repeat(5-review.rating);stars.setAttribute('aria-label',review.rating+' out of 5 stars');
-  const products=document.createElement('p');products.className='review-meta';products.textContent=review.products;
+  const stars=document.createElement('p');stars.className='review-score';stars.appendChild(ratingStars(review.rating));
+  const products=document.createElement('p');products.className='review-meta';products.textContent=reviewCookieName(review.products);
   const body=document.createElement('p');body.textContent=review.text;
   card.append(name,stars,products,body);return card;
 }
@@ -975,7 +984,9 @@ async function loadReviews(reset=false) {
     if(reset){$('reviewList').replaceChildren();shownReviewIds.clear();reviewOffset=0;}
     for(const review of data.reviews){if(!Number.isInteger(review.rating)||review.rating<1||review.rating>5||shownReviewIds.has(review.id))continue;shownReviewIds.add(review.id);$('reviewList').appendChild(reviewCard(review));}
     reviewLoaded=true;reviewOffset=data.nextOffset;
-    $('reviewSummary').textContent=data.total?data.average+' out of 5 · '+data.total+' '+(data.total===1?'review':'reviews'):'Tried my cookies? I’d love to hear what you think.';
+    const summary=$('reviewSummary');summary.replaceChildren();
+    if(data.total){const count=document.createElement('span');count.textContent=' · '+data.total+' '+(data.total===1?'review':'reviews');summary.append(ratingStars(data.average),count);}
+    else summary.textContent='Tried my cookies? I’d love to hear what you think.';
     message.textContent=data.total?'':'Be the first to share a review.';
     button.hidden=data.nextOffset===null;button.textContent='More reviews';
   } catch(err){message.textContent='Reviews couldn’t be loaded. You can try again below.';button.hidden=false;button.textContent='Try again';}
@@ -990,7 +1001,7 @@ function openReview(){
   const dialog=$('reviewDialog'),products=$('reviewProducts');products.replaceChildren();
   for(const product of MENU.filter(m=>m.enabled!==false)){
     const label=document.createElement('label'),input=document.createElement('input'),text=document.createElement('span');
-    input.type='checkbox';input.value=product.id;input.name='reviewProduct';text.textContent=product.name;label.append(input,text);products.appendChild(label);
+    input.type='checkbox';input.value=product.id;input.name='reviewProduct';text.textContent=reviewCookieName(product.name);label.append(input,text);products.appendChild(label);
   }
   $('reviewError').textContent='';if(!dialog.open)dialog.showModal();
 }
