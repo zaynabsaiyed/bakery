@@ -366,6 +366,10 @@ $("status").className="badge "+(CONFIG.ordersOpen?"open":"closed");
 $("foot").textContent="© "+new Date().getFullYear()+" "+CONFIG.bakeryName+"";
 // Houston uses America/Chicago, including daylight saving time.
 function getWeeklySchedule(now=new Date()) {
+  if(+now>=Date.parse('2026-11-14T06:00:00Z')&&+now<Date.parse('2026-11-23T06:00:00Z')){
+    const reopening=getWeeklySchedule(new Date('2026-11-23T06:00:00Z'));
+    return {...reopening,windowOpen:false,vacationPaused:true};
+  }
   const parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/Chicago",year:"numeric",month:"numeric",day:"numeric"}).formatToParts(now);
   const value=k=>Number(parts.find(p=>p.type===k).value);
   const today=new Date(Date.UTC(value("year"),value("month")-1,value("day")));
@@ -721,7 +725,7 @@ function applyStatus(j){
     throw new Error("The weekly order script has not been deployed yet.");
   $("availabilityRetry").hidden=true;
   if(j.privateError){stockReady=false;isOpen=false;showClosed("This private order link is not valid. Please contact me before sending payment.","Private link unavailable");return;}
-  const calendar=typeof j.schedule.windowOpen==="boolean"?j.schedule:getWeeklySchedule();
+  const calendar=j.privateOrder===true?j.schedule:getWeeklySchedule().vacationPaused?getWeeklySchedule():typeof j.schedule.windowOpen==="boolean"?j.schedule:getWeeklySchedule();
   Object.assign(CONFIG.orderInfo,j.orderInfo);updateSchedule({...j.schedule,windowOpen:calendar.windowOpen,opens:calendar.opens});
   productStock=j.products;stockReady=true;sharedCookieLeft=typeof j.sharedCookieLeft==="number"?Math.max(0,j.sharedCookieLeft):Math.min(150,j.left);left=j.left;isOpen=(j.privateOrder===true||CONFIG.ordersOpen)&&j.ordersOpen&&calendar.windowOpen&&left>0;
   if(!restoredDraft){restoredDraft=true;restoreDraft();}
@@ -729,7 +733,8 @@ function applyStatus(j){
   if(pending && pending.pickupDate!==j.schedule.id)
     $("pErr").textContent="This pickup week's deadline has passed. If you have already paid, submit your confirmation below so I can arrange a refund. Otherwise, go back to order for the new pickup date.";
   if(!isOpen) {
-    if(!calendar.windowOpen)showClosed("Orders reopen "+calendar.opens+". Order Monday–Thursday for Sunday pickup.","Orders reopen "+calendar.opens);
+    if(calendar.vacationPaused)showClosed("Orders are paused while I’m away. Orders reopen Monday, November 23.","Orders reopen November 23");
+    else if(!calendar.windowOpen)showClosed("Orders reopen "+calendar.opens+". Order Monday–Thursday for Sunday pickup.","Orders reopen "+calendar.opens);
     else showClosed(left<=0?SOLD:"Orders are closed right now. Check back for the next order window!",left<=0?"Sold out":"Orders are closed");
   } else {
     $("status").textContent="Orders are open";$("status").className="badge open";
