@@ -326,6 +326,7 @@ const $=id=>document.getElementById(id);
 const POLICY_VERSION="pickup-refunds-v2";
 const POLICY_TEXT="Each order is baked especially for you. All sales are final. Customer cancellations and missed pickups are non-refundable. If Good Flour Bakery is unable to fulfill your order, we will issue a full refund.";
 const qty={}; MENU.forEach(m=>qty[m.id]=m.bundles.map(()=>0));
+const PRIVATE_ORDER_TOKEN=new URLSearchParams(location.hash.slice(1)).get("privateOrder")||"";
 let pending=null,completed=false,isOpen=false,left=0,statusRequest=null,orderStage="selection";
 let productStock={},stockReady=false,restoredDraft=false,sharedCookieLeft=150;
 const productCards=new Map();
@@ -630,7 +631,7 @@ function render(){let t=0,bd=[];
   $("total").textContent=money(t);$("breakdown").textContent="";
   saveDraft();
   return{t,bd};}
-const DRAFT_KEY="goodflour-order-v1";
+const DRAFT_KEY=PRIVATE_ORDER_TOKEN?"goodflour-private-order-"+PRIVATE_ORDER_TOKEN:"goodflour-order-v1";
 let savingDraft=false;
 function saveDraft(){
   if(!restoredDraft||savingDraft||completed)return;
@@ -719,9 +720,10 @@ function applyStatus(j){
   if(j.apiVersion!==3 || j.policyVersion!==POLICY_VERSION || !j.schedule || !j.orderInfo || !j.products || typeof j.left!=="number")
     throw new Error("The weekly order script has not been deployed yet.");
   $("availabilityRetry").hidden=true;
+  if(j.privateError){stockReady=false;isOpen=false;showClosed("This private order link is not valid. Please contact me before sending payment.","Private link unavailable");return;}
   const calendar=typeof j.schedule.windowOpen==="boolean"?j.schedule:getWeeklySchedule();
   Object.assign(CONFIG.orderInfo,j.orderInfo);updateSchedule({...j.schedule,windowOpen:calendar.windowOpen,opens:calendar.opens});
-  productStock=j.products;stockReady=true;sharedCookieLeft=typeof j.sharedCookieLeft==="number"?Math.max(0,j.sharedCookieLeft):Math.min(150,j.left);left=j.left;isOpen=CONFIG.ordersOpen&&j.ordersOpen&&calendar.windowOpen&&left>0;
+  productStock=j.products;stockReady=true;sharedCookieLeft=typeof j.sharedCookieLeft==="number"?Math.max(0,j.sharedCookieLeft):Math.min(150,j.left);left=j.left;isOpen=(j.privateOrder===true||CONFIG.ordersOpen)&&j.ordersOpen&&calendar.windowOpen&&left>0;
   if(!restoredDraft){restoredDraft=true;restoreDraft();}
   $("submit").disabled=!isOpen;$("orderNext").disabled=!isOpen;
   if(pending && pending.pickupDate!==j.schedule.id)
@@ -741,7 +743,7 @@ function fetchAvailability(){
   const controller=typeof AbortController!=="undefined"?new AbortController():null;
   let timer;
   const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{if(controller)controller.abort();reject(new Error("Availability check timed out"));},12000);});
-  const request=fetch(CONFIG.sheetUrl+"?action=status&_="+Date.now(),{cache:"no-store",...(controller?{signal:controller.signal}:{})}).then(r=>{if(!r.ok)throw new Error("Status unavailable");return r.json();});
+  const request=fetch(CONFIG.sheetUrl+"?action=status&privateToken="+encodeURIComponent(PRIVATE_ORDER_TOKEN)+"&_="+Date.now(),{cache:"no-store",...(controller?{signal:controller.signal}:{})}).then(r=>{if(!r.ok)throw new Error("Status unavailable");return r.json();});
   return Promise.race([request,deadline]).finally(()=>{if(typeof clearTimeout==="function")clearTimeout(timer);});
 }
 function refreshStatus(){
@@ -939,7 +941,7 @@ $("pSend").onclick=()=>{
   const o=pending;if(!o)return;
   const btn=$("pSend");btn.disabled=true;btn.textContent="Placing order...";
   const reset=()=>{btn.disabled=false;btn.textContent="I've sent my payment";};
-  const payload={id:o.id,name:o.name,phone:o.phone,email:o.email,receiptRequested:!!o.email,items:o.bd.join(" | "),cookies:o.cookies,total:o.t,
+  const payload={privateToken:PRIVATE_ORDER_TOKEN,id:o.id,name:o.name,phone:o.phone,email:o.email,receiptRequested:!!o.email,items:o.bd.join(" | "),cookies:o.cookies,total:o.t,
     notes:o.notes,policyAccepted:o.policyAccepted,policyVersion:o.policyVersion,selections:o.selections,boxes:o.boxes,pickupDate:o.pickupDate,orderWindow:o.orderInfo["Order window"],
     pickupDetails:o.orderInfo["Pickup time"]+" · "+o.orderInfo["Pickup location"],
     zelleRef:ref.slice(0,60),zelleName:zn.slice(0,80)};
